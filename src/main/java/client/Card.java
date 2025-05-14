@@ -1,7 +1,6 @@
 package client;
 
-public enum Card
-{
+public enum Card {
     TWO_OF_CLUBS("2C"),
     THREE_OF_CLUBS("3C"),
     FOUR_OF_CLUBS("4C"),
@@ -53,21 +52,69 @@ public enum Card
     JACK_OF_SPADES("JS"),
     QUEEN_OF_SPADES("QS"),
     KING_OF_SPADES("KS"),
-    ACE_OF_SPADES("AS");
+    ACE_OF_SPADES("AS"),
+    BACK("Back");
 
     private String string;
+    private int value;
+
     Card(String card) {
         this.string = card;
-    }
+        if (card.equals("Back")) {
+            this.value = 0;
+        } else {
+            char rankChar;
+            // Server sends cards like "H2", "DA", "S10"
+            // The first character is the suit, the rest is the rank for single char ranks
+            // For "10", the rank part is two characters.
+            if (card.length() > 1 && card.substring(1).equals("10")) { // e.g., "S10", "H10"
+                rankChar = 'T'; // Represent 10 as 'T' for internal logic consistency
+            } else if (card.length() > 1) {
+                rankChar = card.charAt(1); // e.g., '2' from "S2", 'A' from "HA", 'K' from "DK"
+            } else {
+                rankChar = ' '; // Invalid card string format like "S" or ""
+            }
 
-    public static Card fromString(String card) {
-        card = card.toUpperCase().replace(' ', '_');
-        for (Card c : Card.values()) {
-            if (c.string.equals(card)) {
-                return c;
+            if (rankChar == 'A') {
+                this.value = 1; // Blackjack value for Ace (can also be 11, hand logic handles that)
+            } else if (rankChar == 'K' || rankChar == 'Q' || rankChar == 'J' || rankChar == 'T') {
+                this.value = 10;
+            } else if (Character.isDigit(rankChar)) {
+                // rankChar will be '2' through '9' here because '1' (from '10') is handled as
+                // 'T'
+                this.value = Character.getNumericValue(rankChar);
+            } else {
+                this.value = 0; // Default for unrecognized rankChar (e.g., from invalid card string)
             }
         }
-        throw new IllegalArgumentException("Invalid card: " + card);
+    }
+
+    public static Card fromString(String serverCardString) {
+        if (serverCardString == null || serverCardString.trim().isEmpty()) {
+            throw new IllegalArgumentException("Card string cannot be null or empty");
+        }
+        // Convert server string like "EIGHT of HEARTS" to enum name format
+        // "EIGHT_OF_HEARTS"
+        String enumName = serverCardString.toUpperCase().replace(' ', '_');
+
+        // Special handling for "??" or similar placeholders if server sends them for
+        // unknown cards
+        if (enumName.equals("???") || enumName.equals("HIDDEN")) {
+            // Or throw an error, or return a specific Card.UNKNOWN if you add one
+            return Card.BACK; // Assuming Card.BACK is appropriate for a hidden/unknown card display
+        }
+
+        try {
+            return Card.valueOf(enumName);
+        } catch (IllegalArgumentException e) {
+            System.err.println("[Card.fromString] Failed to find enum constant for: " + enumName
+                    + ". Original server string: '" + serverCardString + "'");
+            // Consider returning a default (like Card.BACK) or re-throwing a more specific
+            // error
+            // For now, re-throwing to make it visible where it's used.
+            throw new IllegalArgumentException(
+                    "Invalid card name for enum lookup: " + enumName + " (from server: " + serverCardString + ")", e);
+        }
     }
 
     public String toString() {
@@ -76,5 +123,9 @@ public enum Card
 
     public String getFilename() {
         return string + ".png";
+    }
+
+    public int getValue() {
+        return this.value;
     }
 }
