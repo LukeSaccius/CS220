@@ -33,3 +33,10 @@ tasks.register('runGUI', JavaExec) {
     mainClass.set('client.BlackjackGUI')
 }
 
+tasks.register('runAutoplayer', JavaExec) {
+    group = 'application'
+    description = 'Run the Autoplayer.'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass.set('client.Autoplayer')
+}
+
